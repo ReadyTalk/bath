@@ -1,4 +1,4 @@
-BATH V0.1
+BATH
 
 In the initial version of bath, only ssh is supported (and there is no installer yet, so you need to do this manually.
 
@@ -13,7 +13,7 @@ REQUIREMENTS
 	 - python-daemon
 	 - python-lockfile
 
- - sudo (but not this bug (http://comments.gmane.org/gmane.comp.tools.sudo.user/3838))
+ - sudo (but not the version with this bug (http://comments.gmane.org/gmane.comp.tools.sudo.user/3838)). See ISSUES
  - apache2 w/ssl mod_python
  - iptables
 
