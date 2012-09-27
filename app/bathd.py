@@ -17,20 +17,90 @@
 ############################################################################
 
 import logging
+import datetime
+import time
+import multiprocessing
 
 from config import *
 from libbath import *
 from pwd import getpwnam
+from bottle import route, run
 
-''' Daemon Functions '''
+################################
+# Create a rule in the firewall
+# On success, return 1
+# On failure, return 0
+################################
+@route('/create/<user>/<user_ip>/<ip>/<port>/<comment>')
+def create(user, user_ip, ip, port, comment):
+	message = create_ssh_connection(user, user_ip, ip, comment)
+	#message = "Created rule for {0} from {1} with access to {2} on port {3} - {4}" . format(user, user_ip, ip, port, comment)
+	return message
+	
+	
+#########################################################
+# Return the history of user
+#########################################################
+@route('/history/<user>/<output>')
+def history(user, output):
+	return get_user_history(user, output)
 
-def do_daemon_main():
-	'''Main daemon loop'''
 
+#########################################################
+# Return the history of all users
+#   and the supplied user is used to authenticate admin
+#########################################################
+@route('/adminhistory/<user>/<output>')
+def adminhistory(user, output):
+	if is_admin(user):
+		return get_all_history(output)
+	return
+
+
+########################################################
+# Returns a list of active connections for a user
+########################################################
+@route('/active/<user>/<output>')
+def active(user, output):
+	return #get_active_ssh_connections()
+
+
+########################################################
+# Returns a list of active connections for a user
+# If port is specified, returns list only for that port
+# If the admin flag is set, returns list for all users
+#   the supplied user is used to authenticate admin
+########################################################
+@route('/adminactive/<user>/<output>')
+def adminactive(user, output):
+	if is_admin(user):
+		return admin_get_current_activity()
+		
+	return
+
+
+################################################################
+# Thread to go through the firewall list and clean up old rules
+# Also verifies that the proper whitelist/blacklist and default
+#   rules are in place
+################################################################
+def janitor():
+	# set up logging
+	logger = logging.getLogger("bathd")
+	logger.setLevel(logging.INFO)
+	formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+	handler = logging.FileHandler(logfile)
+	handler.setFormatter(formatter)
+	logger.addHandler(handler)
+
+	logger.info("Starting Scruffy the Janitor")
+
+	# set up database
 	create_db()
 	dbconnection = sqlite3.connect(db)
 	dbcursor = dbconnection.cursor()
 
+	# main janitorial loop
 	while verify_master_ssh_rules(logger):
 		for rule in get_active_ssh_connections():
 			then = datetime.strptime(rule['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
@@ -46,7 +116,7 @@ def do_daemon_main():
 							SET enabled=0
 							WHERE firewall_ip = ?
 							AND timestamp = ?
-						""", (rule['ip'], rule['timestamp']))
+							""", (rule['ip'], rule['timestamp']))
 						dbconnection.commit()
 				except subprocess.CalledProcessError as error:
 					logger.error(str(error))
@@ -56,16 +126,9 @@ def do_daemon_main():
 	dbcursor.close()
 	dbconnection.close()
 
-'''Daemon Config'''
-
-logger = logging.getLogger("bathd")
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter(
-	"%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler = logging.FileHandler(logfile)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-
-'''Daemon Start'''
-logger.info("Starting service")
-do_daemon_main()
+if __name__ == '__main__':
+	scruffy = multiprocessing.Process(target=janitor)
+	scruffy.start()
+	
+	manager = multiprocessing.Process(target=run, kwargs={'host': HOST, 'port': PORT, 'reloader': False})
+	manager.start()

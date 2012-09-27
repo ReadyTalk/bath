@@ -8,10 +8,9 @@ The database and pid file get created in /var/lib/bath
 bath.sh is a shell script that connects to the webpage using curl for instances where a web browser is cumbersome, or just not available.
 
 REQUIREMENTS
- - python 2.7
+ - python 2.6.3+
 	 - python-ipaddr
-	 - python-daemon
-	 - python-lockfile
+	 - flask
 
  - sudo (but not the version with this bug (http://comments.gmane.org/gmane.comp.tools.sudo.user/3838)). See ISSUES
  - apache2 w/ssl mod_python
@@ -61,4 +60,4 @@ ISSUES
 
 sudo -n: some versions of sudo do not like not having a tty allocated. To get around this, use 'sudo -n'
 
-hanging process (iptables, /bin/sh) or no return values: Some older versionf of sudo (such as 1.7.4p4-2.squeeze.3 0) do not terminate properly. In Debian, this is fixed by backporting the Wheezy sudo package to squeeze. 1.8.3p2-1.1 is the version known to work.
+hanging process (iptables, /bin/sh) or no return values: Some older version of sudo (such as 1.7.4p4-2.squeeze.3 0) do not terminate properly. In Debian, this is fixed by backporting the Wheezy sudo package to squeeze. 1.8.3p2-1.1 is the version known to work.

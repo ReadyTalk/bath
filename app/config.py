@@ -19,3 +19,7 @@ adminHistoryLimit=15
 logfile="/var/lib/bath/bath.log"
 
 monitorUser = 'monitor'
+
+
+HOST = '0.0.0.0'
+PORT = 8274

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ############################################################################
 # Copyright [2012] [Mathew Branyon (mat.branyon@readytalk.com)]
 #
@@ -17,8 +19,9 @@
 from libbath import *
 from mod_python import apache
 
+import httplib
+import urllib
 import sqlite3
-import socket
 import ipaddr
 
 #################
@@ -44,15 +47,34 @@ def index(req, time=0, output='html'):
 				ip = get_client_ip(req)
 		else:
 			ip = get_client_ip(req)
-
-		message = str(create_ssh_connection(user, ip, get_client_ip(req), req.form['comment']))
+		
+		comment= ''
+		if not req.form['comment']:
+			comment = None
+		else:
+			comment = req.form['comment']
+			
+		connection = httplib.HTTPConnection(HOST, PORT)
+		connection.request(
+			"GET", 
+			"/create/{0}/{1}/{2}/{3}/{4}" . format(user, get_client_ip(req), ip, 22, comment))
+		response = connection.getresponse()
+		message = str(response.read())
+		connection.close()
 
 # proceed with rendering the page
 	ip = get_client_ip(req)
 
 	if user == monitorUser:
 		req.content_type = 'text/plain'
-		req.write("{0}\nconnections={1}\n" . format(str(create_ssh_connection(user, ip, ip, 'monitoring')), connections_since(time)))
+
+		connection = httplib.HTTPConnection(HOST, PORT)
+		connection.request(
+			"GET",
+			"/create/{0}/{1}/{2}/{3}/{4}" . format(user, get_client_ip(req), ip, 22, comment))
+		response = connection.getresponse()
+		req.write("{0}\nconnections={1}\n" . format(str(response.read()), connections_since(time)))
+		connection.close()
 
 	else:
 		if output == 'html':
@@ -85,11 +107,34 @@ def index(req, time=0, output='html'):
 		<br><br>
 """)
 
-			req.write(get_user_history(user, 'text/html')+ "<br><br>")
+			if is_admin(user):
+				connection = httplib.HTTPConnection(HOST, PORT)
+				connection.request(
+					"GET",
+					"/adminactive/{0}/{1}" . format(user, output))
+				response = connection.getresponse()
+				
+				req.write(response.read() + "<br><br>")
+				connection.close()
+
+			connection = httplib.HTTPConnection(HOST, PORT)
+			connection.request(
+				"GET",
+				"/history/{0}/{1}" . format(user, output))
+			response = connection.getresponse()
+			
+			req.write(response.read() + "<br><br>")
+			connection.close()
 
 			if is_admin(user):
-				req.write(admin_get_current_activity()+ "<br><br>")
-				req.write(get_all_history('text/html')+ "<br><br>")
+				connection = httplib.HTTPConnection(HOST, PORT)
+				connection.request(
+					"GET",
+					"/adminhistory/{0}/{1}" . format(user, output))
+				response = connection.getresponse()
+				
+				req.write(response.read() + "<br><br>")
+				connection.close()
 
 			req.write("""
 	<h5><a href="bath.sh">download</a> shell script</h5>
@@ -97,6 +142,20 @@ def index(req, time=0, output='html'):
 """)
 		else:
 			req.content_type = 'text/plain'
-			req.write(message + "\n" + get_user_history(user, 'text/plain'))
+
+			connection = httplib.HTTPConnection(HOST, PORT)
+			connection.request(
+				"GET",
+				"/history/{0}/{1}" . format(user, output))
+			response = connection.getresponse()
+			req.write(message + "\n" + response.read())
+			connection.close()
+
 			if is_admin(user):
-				req.write("\n\n" + get_all_history('text/plain'))
+				connection = httplib.HTTPConnection(HOST, PORT)
+				connection.request(
+					"GET",
+					"/adminhistory/{0}/{1}" . format(user, output))
+				response = connection.getresponse()
+				req.write("\n\n" + response.read())
+				connection.close()

@@ -200,7 +200,7 @@ def get_active_ssh_connections():
 # Returns Table (html or text) of previous # 
 # userHistoryLimit connections from user   #
 ############################################
-def get_user_history(user, contentType,):
+def get_user_history(user, contentType):
 	# Database connection stuff
 	dbconnection = sqlite3.connect(db)
 	dbcursor = dbconnection.cursor()
@@ -214,7 +214,7 @@ def get_user_history(user, contentType,):
 
 	history = dbcursor.fetchall()
 
-	if contentType == 'text/html':
+	if contentType == 'html':
 		table = """
 <table><caption>Connection History</caption>
 	<tr>
@@ -251,7 +251,7 @@ def get_user_history(user, contentType,):
 # Returns Table (html or text) of previous # 
 # adminHistoryLimit connections from user  #
 ############################################
-def get_all_history(contentType,):
+def get_all_history(contentType):
   # Database connection stuff
 	dbconnection = sqlite3.connect(db)
 	dbcursor = dbconnection.cursor()
@@ -264,7 +264,7 @@ def get_all_history(contentType,):
 
 	history = dbcursor.fetchall()
 
-	if contentType == 'text/html':
+	if contentType == 'html':
 		table = """
 <table><caption>All Connection History</caption>
 	<tr>
@@ -287,7 +287,7 @@ def get_all_history(contentType,):
 
 		table += "</table>"
 	else:
-		table = "{0:12}  {1:15}  {2:15}  {3:26}  {4}\n" . format("User","FROM","FOR","Timestamp","Comment")
+		table = "{0:12}  {1:15}  {2:15}  {3:26}  {4}\n##{5}##" . format("User","FROM","FOR","Timestamp","Comment", contentType)
 		table += "-"*60 + "\n"
     
 		for row in history:
