@@ -9,9 +9,7 @@ bath.sh is a shell script that connects to the webpage using curl for instances 
 
 REQUIREMENTS
  - python 2.6.3+
-	 - python-ipaddr
-	 - flask
-
+ - bottle (http://bottlepy.org)
  - sudo (but not the version with this bug (http://comments.gmane.org/gmane.comp.tools.sudo.user/3838)). See ISSUES
  - apache2 w/ssl mod_python
  - iptables
@@ -46,7 +44,7 @@ the bathd script is the init file that starts the daemon, and should go into /et
 
 CONFIG
 
-take a look at /var/lib/bath/app/config.py
+take a look at /var/lib/bath/bath.conf
 pay particular attnetion to the iptable rules, which must match with what's been put in the /etc/sudoers file
 
 PIDFILE in the init script must match the pidfile in the config if you wish to use the init script
