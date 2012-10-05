@@ -21,19 +21,19 @@ import datetime
 import time
 import multiprocessing
 
-from config import *
 from libbath import *
 from pwd import getpwnam
-from bottle import route, run
+from bottle import route, run, request
+
 
 ################################
 # Create a rule in the firewall
 # On success, return 1
 # On failure, return 0
 ################################
-@route('/create/<user>/<user_ip>/<ip>/<port>/<comment>')
-def create(user, user_ip, ip, port, comment):
-	message = create_ssh_connection(user, user_ip, ip, comment)
+@route('/create/<app>/<user>/<ip>/<user_ip>/<comment>')
+def create(app, user, ip, user_ip, comment):
+	message = create_connection(app, user, ip, user_ip, comment)
 	#message = "Created rule for {0} from {1} with access to {2} on port {3} - {4}" . format(user, user_ip, ip, port, comment)
 	return message
 	
@@ -41,20 +41,12 @@ def create(user, user_ip, ip, port, comment):
 #########################################################
 # Return the history of user
 #########################################################
-@route('/history/<user>/<output>')
-def history(user, output):
-	return get_user_history(user, output)
-
-
-#########################################################
-# Return the history of all users
-#   and the supplied user is used to authenticate admin
-#########################################################
-@route('/adminhistory/<user>/<output>')
-def adminhistory(user, output):
-	if is_admin(user):
-		return get_all_history(output)
-	return
+@route('/history')
+def history(user=None):
+	if 'user' in request.query:
+		return get_user_history(request.query['user'])
+	else:
+		return get_user_history()
 
 
 ########################################################
@@ -62,7 +54,7 @@ def adminhistory(user, output):
 ########################################################
 @route('/active/<user>/<output>')
 def active(user, output):
-	return #get_active_ssh_connections()
+	return #get_active_connections()
 
 
 ########################################################
@@ -71,8 +63,8 @@ def active(user, output):
 # If the admin flag is set, returns list for all users
 #   the supplied user is used to authenticate admin
 ########################################################
-@route('/adminactive/<user>/<output>')
-def adminactive(user, output):
+@route('/adminactive/<user>')
+def adminactive(user):
 	if is_admin(user):
 		return admin_get_current_activity()
 		
@@ -85,11 +77,12 @@ def adminactive(user, output):
 #   rules are in place
 ################################################################
 def janitor():
+	mainConfig = getMainConfig()
 	# set up logging
 	logger = logging.getLogger("bathd")
 	logger.setLevel(logging.INFO)
 	formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-	handler = logging.FileHandler(logfile)
+	handler = logging.FileHandler(mainConfig['logfile'])
 	handler.setFormatter(formatter)
 	logger.addHandler(handler)
 
@@ -97,27 +90,20 @@ def janitor():
 
 	# set up database
 	create_db()
-	dbconnection = sqlite3.connect(db)
+	dbconnection = sqlite3.connect(mainConfig['db'])
 	dbcursor = dbconnection.cursor()
 
 	# main janitorial loop
-	while verify_master_ssh_rules(logger):
-		for rule in get_active_ssh_connections():
+	while verify_master_rules(logger):
+		appConfig = getAppConfig()
+		for rule in get_all_active_connections():
 			then = datetime.strptime(rule['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
-			if (datetime.now() - then) > timedelta(minutes=firewall_rule_ttl) or rule['user'] == monitorUser:
-				if rule['user'] != monitorUser:
-					logger.info("attempting to remove {0}" . format(rule['ip']))
+			if (datetime.now() - then) > timedelta(minutes=int(appConfig[rule['app']].get('ttl'))) or rule['user'] == mainConfig.get('monitorUser') or rule['app'] not in appConfig:
+				if rule['user'] != mainConfig.get('monitorUser'):
+					logger.info("attempting to remove {0} rule for {1}" . format(rule['app'], rule['ip']))
 
 				try:
-					subprocess.check_call(["{0} {1}{2}/32 --match comment --comment \"{3}|{4}|{5}|{6}|{7}\"" . format(sudoCommand, sshFirewallDeleteCommand, rule['ip'], appName, rule['proto'], rule['id'], rule['user'], rule['timestamp'])], shell=True)
-					if rule['user'] != monitorUser:
-						dbcursor.execute("""
-							UPDATE sshConnection
-							SET enabled=0
-							WHERE firewall_ip = ?
-							AND timestamp = ?
-							""", (rule['ip'], rule['timestamp']))
-						dbconnection.commit()
+					subprocess.check_call(["{0} {1} {2}/32 --match comment --comment \"{3}|{4}|{5}|{6}|{7}\"" . format(mainConfig.get('sudoCommand'), str.replace(mainConfig.get('deleteRule'), '?', rule['port']), rule['ip'], mainConfig['name'], rule['app'], rule['id'], rule['user'], rule['timestamp'])], shell=True)
 				except subprocess.CalledProcessError as error:
 					logger.error(str(error))
 
@@ -127,8 +113,9 @@ def janitor():
 	dbconnection.close()
 
 if __name__ == '__main__':
+	mainConfig = getMainConfig()
 	scruffy = multiprocessing.Process(target=janitor)
 	scruffy.start()
 	
-	manager = multiprocessing.Process(target=run, kwargs={'host': HOST, 'port': PORT, 'reloader': False})
+	manager = multiprocessing.Process(target=run, kwargs={'host': mainConfig['host'], 'port': mainConfig['port'], 'reloader': False, 'server': 'paste'})
 	manager.start()

@@ -17,7 +17,7 @@
 ############################################################################
 
 from libbath import *
-from mod_python import apache
+from mod_python import apache, util
 
 import httplib
 import urllib
@@ -28,6 +28,8 @@ import ipaddr
 # Show me first #
 #################
 def index(req, time=0, output='html'):
+	mainConfig = getMainConfig()
+	appConfig = getAppConfig()
 	req.add_common_vars()
 	create_db()
 	user = get_user_name(req)
@@ -36,7 +38,7 @@ def index(req, time=0, output='html'):
 # Process form data if we have it
 	if req.form:
 		ip = ''
-		if ip in req.form:
+		if 'ip' in req.form:
 			# this module is supposed to have ip_address (to support ipv4 and ipv6)
 			# it doesn't
 	 		# this code currently only supports ipv4
@@ -52,12 +54,12 @@ def index(req, time=0, output='html'):
 		if not req.form['comment']:
 			comment = None
 		else:
-			comment = req.form['comment']
+			comment = urllib.quote_plus(req.form['comment'])
 			
-		connection = httplib.HTTPConnection(HOST, PORT)
+		connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
 		connection.request(
 			"GET", 
-			"/create/{0}/{1}/{2}/{3}/{4}" . format(user, get_client_ip(req), ip, 22, comment))
+			"/create/{0}/{1}/{2}/{3}/{4}" . format(req.form['app'], user, ip, get_client_ip(req), comment))
 		response = connection.getresponse()
 		message = str(response.read())
 		connection.close()
@@ -65,13 +67,13 @@ def index(req, time=0, output='html'):
 # proceed with rendering the page
 	ip = get_client_ip(req)
 
-	if user == monitorUser:
+	if user == mainConfig['monitorUser']:
 		req.content_type = 'text/plain'
 
-		connection = httplib.HTTPConnection(HOST, PORT)
+		connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
 		connection.request(
 			"GET",
-			"/create/{0}/{1}/{2}/{3}/{4}" . format(user, get_client_ip(req), ip, 22, comment))
+			"/create/{0}/{1}/{2}/{3}/{4}" . format(app, user, ip, get_client_ip(req), None))
 		response = connection.getresponse()
 		req.write("{0}\nconnections={1}\n" . format(str(response.read()), connections_since(time)))
 		connection.close()
@@ -101,36 +103,41 @@ def index(req, time=0, output='html'):
 					<td style="border:0">comment:</td>
 					<td style="border:0"><input type="text" name="comment"></td>
 				</tr>
-			</table>
-	   	<input type="submit" name="ssh" value="Activate SSH">
+			</table>""")
+
+			for app in appConfig:
+				req.write("""
+	   	<input type="submit" name="app" value="{0}">""" . format(app))
+
+			req.write("""
 	  </form>
 		<br><br>
 """)
 
 			if is_admin(user):
-				connection = httplib.HTTPConnection(HOST, PORT)
+				connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
 				connection.request(
 					"GET",
-					"/adminactive/{0}/{1}" . format(user, output))
+					"/adminactive/{0}" . format(user))
 				response = connection.getresponse()
 				
 				req.write(response.read() + "<br><br>")
 				connection.close()
 
-			connection = httplib.HTTPConnection(HOST, PORT)
+			connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
 			connection.request(
 				"GET",
-				"/history/{0}/{1}" . format(user, output))
+				"/history?user={0}" . format(user))
 			response = connection.getresponse()
 			
 			req.write(response.read() + "<br><br>")
 			connection.close()
 
 			if is_admin(user):
-				connection = httplib.HTTPConnection(HOST, PORT)
+				connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
 				connection.request(
 					"GET",
-					"/adminhistory/{0}/{1}" . format(user, output))
+					"/history" . format(user))
 				response = connection.getresponse()
 				
 				req.write(response.read() + "<br><br>")
@@ -142,20 +149,4 @@ def index(req, time=0, output='html'):
 """)
 		else:
 			req.content_type = 'text/plain'
-
-			connection = httplib.HTTPConnection(HOST, PORT)
-			connection.request(
-				"GET",
-				"/history/{0}/{1}" . format(user, output))
-			response = connection.getresponse()
-			req.write(message + "\n" + response.read())
-			connection.close()
-
-			if is_admin(user):
-				connection = httplib.HTTPConnection(HOST, PORT)
-				connection.request(
-					"GET",
-					"/adminhistory/{0}/{1}" . format(user, output))
-				response = connection.getresponse()
-				req.write("\n\n" + response.read())
-				connection.close()
+			req.write(message)

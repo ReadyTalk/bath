@@ -35,11 +35,11 @@ Alias /bath /var/lib/bath/app
 These lines needs to be in the /etc/sudoers file:
 ----------------------------------
 # Cmnd alias specification
-Cmnd_Alias CREATESSH = /sbin/iptables -A INPUT -p tcp -m tcp --dport 22 -m state --state NEW -j REJECT -m comment --comment *
-Cmnd_Alias ADDSSH = /sbin/iptables -I INPUT -p tcp --dport 22 -m state --state NEW -j ACCEPT -s *
-Cmnd_Alias DELSSH = /sbin/iptables -D INPUT -p tcp --dport 22 -m state --state NEW -j ACCEPT -s *
-Cmnd_Alias SHOWSSH = /sbin/iptables -n -L INPUT
-www-data                ALL=NOPASSWD: CREATESSH, ADDSSH, DELSSH, SHOWSSH
+Cmnd_Alias CREATERULE = /sbin/iptables --append INPUT --protocol tcp --dport [0-9][0-9]* --match state --state NEW --jump REJECT --match comment --comment *
+Cmnd_Alias ADDRULE = /sbin/iptables --insert INPUT --protocol tcp --dport [0-9][0-9]* --match state --state NEW --jump ACCEPT --source *
+Cmnd_Alias DELRULE = /sbin/iptables --delete INPUT --protocol tcp --dport [0-9][0-9]* --match state --state NEW --jump ACCEPT --source *
+Cmnd_Alias SHOWRULE = /sbin/iptables --numeric --list INPUT
+www-data        bath-dev=NOPASSWD: CREATERULE, ADDRULE, DELRULE, SHOWRULE
 ----------------------------------
 
 the bathd script is the init file that starts the daemon, and should go into /etc/init.d/
