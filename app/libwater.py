@@ -16,9 +16,9 @@
 
 import ConfigParser
 import json
+import httplib
 
-configFile = '/var/lib/bath/bath.conf'
-
+configFile = '/var/lib/bath/client.conf'
 
 ##############################################################
 # returns a dictonary of the main section in the config file #
@@ -31,15 +31,6 @@ def getMainConfig():
 
 	try:
 		mainConfig['name'] = config.get('main', 'name')
-		mainConfig['db'] = config.get('main', 'db')
-		mainConfig['logfile'] = config.get('main', 'logfile')
-		mainConfig['sudoCommand'] = config.get('main', 'sudoCommand')
-		mainConfig['denyRule'] = config.get('main', 'denyRule')
-		mainConfig['insertRule'] = config.get('main', 'insertRule')
-		mainConfig['deleteRule'] = config.get('main', 'deleteRule')
-		mainConfig['showRule'] = config.get('main', 'showRule')
-		mainConfig['userHistoryLimit'] = config.get('main', 'userHistoryLimit')
-		mainConfig['adminHistoryLimit'] = config.get('main', 'adminHistoryLimit')
 		mainConfig['monitorUser'] = config.get('main', 'monitorUser')
 		mainConfig['host'] = config.get('main', 'host')
 		mainConfig['port'] = config.getint('main', 'port')
@@ -66,11 +57,12 @@ def getAppConfig():
 		if section != 'main' and config.getboolean(section, 'enabled'):
 			try:
 				appConfig[section] = dict()
-				appConfig[section]['port'] = config.get(section, 'port')
-				appConfig[section]['ttl'] = config.get(section, 'ttl')
 			except ConfigParser.NoOptionError as error:
 				print "Error reading config file ({0}): " . format(configFile), error
 				sys.exit(1)
+			for name, value in config.items(section):
+				if name not in appConfig[section]:
+					appConfig[section][name] = value
 
 	if len(appConfig):
 		return appConfig
@@ -99,3 +91,16 @@ def get_user_name(req):
 		return req.subprocess_env['AUTHENTICATE_UID']
 
 
+######################################
+# HTTP Get -- returns results of GET #
+######################################
+def http_get(path):
+	mainConfig = getMainConfig()
+	connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
+#	connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'], mainConfig['cert'])
+	connection.request(
+		"GET",
+		"{0}" . format(path))
+	response = connection.getresponse().read()
+	connection.close()
+	return response

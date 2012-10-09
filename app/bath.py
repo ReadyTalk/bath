@@ -19,7 +19,6 @@
 from libwater import *
 from mod_python import apache, util
 
-import httplib
 import urllib
 import ipaddr
 import json
@@ -228,19 +227,6 @@ def index(req, time=0, output='html'):
 		else:
 			req.content_type = 'text/plain'
 			req.write(message)
-
-######################################
-# HTTP Get -- returns results of GET #
-######################################
-def http_get(path):
-	mainConfig = getMainConfig()
-	connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
-	connection.request(
-		"GET",
-		"{0}" . format(path))
-	response = connection.getresponse().read()
-	connection.close()
-	return response
 
 
 #################################################
