@@ -58,6 +58,14 @@ def active(user, output):
 
 
 ########################################################
+# Returns true if user is an admin
+########################################################
+@route('/admin/<user>')
+def admin(user, output):
+	return is_admin(user)
+
+
+########################################################
 # Returns a list of active connections for a user
 # If port is specified, returns list only for that port
 # If the admin flag is set, returns list for all users

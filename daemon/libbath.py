@@ -17,9 +17,9 @@
 import sqlite3
 import ipaddr
 import subprocess
-import time
 import ConfigParser
 import urllib
+import json
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -84,26 +84,6 @@ def getAppConfig():
 	else:
 		print "No applications are defined for use: nothing to do here"
 		sys.exit(2)
-
-
-##########################
-# returns remote address #
-##########################
-def get_client_ip(req):
-	req.add_common_vars()
-	return req.subprocess_env['REMOTE_ADDR']
-
-
-#####################################
-# returns apache authenticated name #
-#####################################
-def get_user_name(req):
-	mainConfig = getMainConfig()
-	req.add_common_vars()
-	if  get_client_ip(req) == '127.0.0.1':
-		return mainConfig['monitorUser']
-	else:
-		return req.subprocess_env['AUTHENTICATE_UID']
 
 
 ################################################
@@ -295,37 +275,18 @@ def get_active_connections(app):
 	return activeConnections
 
 ##########################################
-# Returns Table (html) of previous       # 
+# Returns table of previous              # 
 # userHistoryLimit connections from user #
 ##########################################
 def get_user_history(user=None):
 	mainConfig = getMainConfig()
+	appConfig = getAppConfig()
 
 	# Database connection stuff
 	dbconnection = sqlite3.connect(mainConfig['db'])
 	dbcursor = dbconnection.cursor()
 
-
-	table = "<table>"
-	if user:
-		table += '''
-	<caption>Connection History</caption>'''
-	else:
-		table += '''
-	<caption>Admin Connection History</caption>'''
-	
-	table += """
-	<tr>
-		<th>App</th>
-		<th>IP Request FROM</th>
-		<th>IP Request FOR</th>
-		<th>Timestamp</th>
-		<th>Time Left</th>
-		<th>Comment</th>
-	</tr>"""
-
-	
-	select = 'SELECT app, firewall_ip, user_ip, timestamp, comment FROM connections '
+	select = 'SELECT app, firewall_ip, user_ip, timestamp, comment, user FROM connections '
 	parameters = list()
 
 	if user:
@@ -341,80 +302,71 @@ def get_user_history(user=None):
 	history = dbcursor.fetchall()
 	connections = get_all_active_connections()
 	
+	connectionHistory = list()
 	for row in history:
 		active = False
 		timeleft = '-'
 		for connection in connections:
 			if connection['timestamp'] == row[3]:
 				active = True
+				then = datetime.strptime(connection['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
+				if (datetime.now() - then) > timedelta(minutes=int(appConfig[connection['app']].get('ttl'))):
+					timeleft = 'expired'
+				else:
+					timeleftData = relativedelta(then + timedelta(minutes=int(appConfig[connection['app']].get('ttl'))), datetime.now())
+					timeleft = "{0} min {1} sec" . format(timeleftData.minutes, timeleftData.seconds)
+				
 				break
-		if active:
-			timeleft = connection['timeleft']
-			table += """	
-	<tr bgcolor="lightgreen">"""
-		else:
-			table += """
-	<tr>"""
-		table += """
-		<td>{0}</td>
-		<td>{1}</td>
-		<td>{2}</td>
-		<td>{3}</td>
-		<td>{4}</td>
-		<td>{5}</td>
-	</tr>""" . format(row[0], row[1], row[2], row[3], timeleft, row[4])
-
-	table += "</table><br>"
+		connectionHistory.append({
+			'user':row[5], 
+			'app':row[0], 
+			'firewall_ip':row[1], 
+			'user_ip':row[2], 
+			'timestamp':row[3], 
+			'timeleft':timeleft, 
+			'comment':row[4], 
+			'active':active})
 
 	dbcursor.close()
 	dbconnection.close()
-	return table
+	return json.dumps(connectionHistory)
 
 
-##########################################################
-# returns a table for current connections for admin user #
-##########################################################
+#########################################################
+# returns a list for current connections for admin user #
+#########################################################
 def admin_get_current_activity():
 	appConfig = getAppConfig()
-
-	table = """
-<table><caption>Active Connections</caption>
-	<tr>
-		<th>App</th>
-		<th>User</th>
-		<th>IP</th>
-		<th>Time Left</th>
-		<th>Timestamp</th>
-	</tr>"""
+	activity = list()
 
 	for row in get_all_active_connections():
-		table += """
-	<tr>
-		<td>{0}</td>
-		<td>{1}</td>
-		<td>{2}</td>""" . format(row['app'], row['user'], row['ip'])
+		timeleft = None
 
 		then = datetime.strptime(row['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
 		if (datetime.now() - then) > timedelta(minutes=int(appConfig[row['app']].get('ttl'))):
-			table += """
-		<td style=\"color:red\">expired</td>"""
+			timeleft = 'expired'
 		else:
-			timeleft= relativedelta(then + timedelta(minutes=int(appConfig[row['app']].get('ttl'))), datetime.now())
+			timeleftData = relativedelta(then + timedelta(minutes=int(appConfig[row['app']].get('ttl'))), datetime.now())
+			timeleft = "{0} min {1} sec" . format(timeleftData.minutes, timeleftData.seconds)
 				
-			table += """
-		<td>{0} min {1} sec</td>""" . format(timeleft.minutes, timeleft.seconds)
+		activity.append({'app':row['app'],
+										'user':row['user'],
+										'ip':row['ip'],
+										'timeleft':timeleft,
+										'timestamp':row['timestamp'],
+										'port':row['port'],
+										'comment':row['comment'],
+										'name':row['name'],
+										'id':row['id']})
 
-			table += """
-		<td>{0}</td>""" . format(row['timestamp'])
-		
-	table += """
-	</tr>
-</table><br>"""
-	return table
+	return json.dumps(activity)
 
 ########################################################
 # Returns integer of successful connections since time #
 ########################################################
+#
+# TODO: FIX THIS
+#
 def connections_since(time=0):
 	mainConfig = getMainConfig()
 	# Database connection stuff
@@ -480,14 +432,3 @@ def verify_master_rules(logger):
 
 	return True
 
-
-#################################################
-# returns html and header with css and all that #
-#################################################
-def get_html_header():
-	return """
-<html>
-	<head>
-		<link href="style.css" rel="stylesheet" type="text/css">
-	</head>
-<body>"""

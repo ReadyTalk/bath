@@ -16,13 +16,13 @@
 # limitations under the License.
 ############################################################################
 
-from libbath import *
+from libwater import *
 from mod_python import apache, util
 
 import httplib
 import urllib
-import sqlite3
 import ipaddr
+import json
 
 #################
 # Show me first #
@@ -31,7 +31,7 @@ def index(req, time=0, output='html'):
 	mainConfig = getMainConfig()
 	appConfig = getAppConfig()
 	req.add_common_vars()
-	create_db()
+
 	user = get_user_name(req)
 	message=""
 
@@ -56,13 +56,7 @@ def index(req, time=0, output='html'):
 		else:
 			comment = urllib.quote_plus(req.form['comment'])
 			
-		connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
-		connection.request(
-			"GET", 
-			"/create/{0}/{1}/{2}/{3}/{4}" . format(req.form['app'], user, ip, get_client_ip(req), comment))
-		response = connection.getresponse()
-		message = str(response.read())
-		connection.close()
+		message = str(http_get("/create/{0}/{1}/{2}/{3}/{4}" . format(req.form['app'], user, ip, get_client_ip(req), comment)))
 
 # proceed with rendering the page
 	ip = get_client_ip(req)
@@ -70,12 +64,7 @@ def index(req, time=0, output='html'):
 	if user == mainConfig['monitorUser']:
 		req.content_type = 'text/plain'
 
-		connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
-		connection.request(
-			"GET",
-			"/create/{0}/{1}/{2}/{3}/{4}" . format(app, user, ip, get_client_ip(req), None))
-		response = connection.getresponse()
-		req.write("{0}\nconnections={1}\n" . format(str(response.read()), connections_since(time)))
+		req.write("{0}\nconnections={1}\n" . format(str(http_get("/create/{0}/{1}/{2}/{3}/{4}" . format(req.form['app'], user, ip, get_client_ip(req), None))), connections_since(time)))
 		connection.close()
 
 	else:
@@ -90,7 +79,7 @@ def index(req, time=0, output='html'):
 				<tr style="border:0">
 					<td style="border:0">ip:</td>""" . format(message))
 
-			if is_admin(user):
+			if http_get("admin/user"):
 				req.write("""
 					<td style="border:0"><input type="text" name="ip" value={0}></td>""" . format(ip))
 			else:
@@ -114,35 +103,124 @@ def index(req, time=0, output='html'):
 		<br><br>
 """)
 
-			if is_admin(user):
-				connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
-				connection.request(
-					"GET",
-					"/adminactive/{0}" . format(user))
-				response = connection.getresponse()
-				
-				req.write(response.read() + "<br><br>")
-				connection.close()
+			if http_get("admin/user"):
+				req.write('''
+		<table>
+			<caption>Active Connections</caption>''')
 
-			connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
-			connection.request(
-				"GET",
-				"/history?user={0}" . format(user))
-			response = connection.getresponse()
+				req.write('''
+			<tr>
+    		<th>User</th>
+				<th>App</th>
+				<th>IP</th>
+				<th>Timestamp</th>
+				<th>Time Left</th>
+			</tr>''')
+
+				for current in json.loads(http_get("/adminactive/{0}" . format(user))):
+					req.write('''
+			<tr>
+				<td>{0}</td>
+				<td>{1}</td>
+				<td>{2}</td>
+				<td>{3}</td>
+				<td>{4}</td>
+			</tr>''' . format(current['user'],
+												current['app'],
+												current['ip'],
+												current['timestamp'],
+												current['timeleft']))
+				req.write('''
+		</table>
+		<br><br>''')
+
+
+		req.write('''
+		<table>
+			<caption>Connection History</caption>
+			<tr>
+				<th>App</th>
+				<th>IP Request From</th>
+				<th>IP Request For</th>
+				<th>Timestamp</th>
+				<th>Time Left</th>
+				<th>Comment</th>
+			</tr>''')
+		
+		for connection in json.loads(http_get("/history?user={0}" . format(user))):
+			if connection['timeleft'] == False:
+				req.write('''
+			<tr bgcolor='lightred'>''')
+			elif connection['active']:
+				req.write('''
+			<tr bgcolor='lightgreen'>''')
+			else:
+				req.write('''
+			<tr>''')
 			
-			req.write(response.read() + "<br><br>")
-			connection.close()
+			req.write('''
+				<td>{0}</td>
+				<td>{1}</td>
+				<td>{2}</td>
+				<td>{3}</td>
+				<td>{4}</td>
+				<td>{5}</td>
+			</tr>''' . format(connection['app'],
+												connection['firewall_ip'],
+												connection['user_ip'],
+												connection['timestamp'],
+												connection['timeleft'],
+												connection['comment']))
+		req.write('''
+		</table>
+		<br><br>''')
 
-			if is_admin(user):
-				connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
-				connection.request(
-					"GET",
-					"/history" . format(user))
-				response = connection.getresponse()
-				
-				req.write(response.read() + "<br><br>")
-				connection.close()
+		if http_get("admin/user"):
+			req.write('''
+		<table>
+			<caption>Everyone's Connection History</caption>
+			<tr>
+				<th>User</th>
+				<th>App</th>
+				<th>IP Request From</th>
+				<th>IP Request For</th>
+				<th>Timestamp</th>
+				<th>Time Left</th>
+				<th>Comment</th>
+			</tr>''')
+		
+			for connection in json.loads(http_get("/history")):
+				if connection['timeleft'] == False:
+					req.write('''
+			<tr bgcolor='lightred'>''')
+				elif connection['active']:
+						req.write('''
+			<tr bgcolor='lightgreen'>''')
+				else:
+					req.write('''
+			<tr>''')
+			
+				req.write('''
+				<td>{0}</td>
+				<td>{1}</td>
+				<td>{2}</td>
+				<td>{3}</td>
+				<td>{4}</td>
+				<td>{5}</td>
+				<td>{6}</td>
+			</tr>''' . format(connection['user'],
+												connection['app'],
+												connection['firewall_ip'],
+												connection['user_ip'],
+												connection['timestamp'],
+												connection['timeleft'],
+												connection['comment']))
 
+			req.write('''
+		</table>
+		<br><br>''')
+
+	
 			req.write("""
 	<h5><a href="bath.sh">download</a> shell script</h5>
 </html>
@@ -150,3 +228,28 @@ def index(req, time=0, output='html'):
 		else:
 			req.content_type = 'text/plain'
 			req.write(message)
+
+######################################
+# HTTP Get -- returns results of GET #
+######################################
+def http_get(path):
+	mainConfig = getMainConfig()
+	connection = httplib.HTTPConnection(mainConfig['host'], mainConfig['port'])
+	connection.request(
+		"GET",
+		"{0}" . format(path))
+	response = connection.getresponse().read()
+	connection.close()
+	return response
+
+
+#################################################
+# returns html and header with css and all that #
+#################################################
+def get_html_header():
+  return """
+<html>
+  <head>
+    <link href="style.css" rel="stylesheet" type="text/css">
+  </head>
+<body>"""
