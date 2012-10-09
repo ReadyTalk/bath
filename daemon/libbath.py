@@ -24,7 +24,7 @@ import json
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
-configFile = '/var/lib/bath/bath.conf'
+configFile = '/var/lib/bath/daemon/bath.conf'
 
 
 ##############################################################
@@ -39,6 +39,7 @@ def getMainConfig():
 	try:
 		mainConfig['name'] = config.get('main', 'name')
 		mainConfig['db'] = config.get('main', 'db')
+		mainConfig['cert'] = config.get('main', 'cert')
 		mainConfig['logfile'] = config.get('main', 'logfile')
 		mainConfig['sudoCommand'] = config.get('main', 'sudoCommand')
 		mainConfig['denyRule'] = config.get('main', 'denyRule')
@@ -78,6 +79,9 @@ def getAppConfig():
 			except ConfigParser.NoOptionError as error:
 				print "Error reading config file ({0}): " . format(configFile), error
 				sys.exit(1)
+			for name, value in config.items(section):
+				if name not in appConfig[section]:
+					appConfig[section][name] = value
 
 	if len(appConfig):
 		return appConfig
@@ -394,6 +398,7 @@ def verify_master_rules(logger):
 	appConfig = getAppConfig()
 	for app in appConfig:
 		try:
+			'''get list of firewall rules'''
 			output = subprocess.Popen([mainConfig['sudoCommand'] + " " + mainConfig['showRule']], shell=True, stdout=subprocess.PIPE).communicate()[0]
 		except subprocess.CalledProcessError as error:
 			return False
@@ -402,8 +407,9 @@ def verify_master_rules(logger):
 		foundMaster = False
 		for line in output.splitlines():
 			part = line.split()
-			if len(part) >= 10 and part[10].startswith('{0}|master|{1}' . format(mainConfig['name'], app)):
+			if len(part) >= 10 and '{0}|master|{1}' . format(mainConfig['name'], app) in part[10]:
 				foundMaster = True
+				break
 	
 		if foundMaster is False:
 			try:
@@ -414,13 +420,14 @@ def verify_master_rules(logger):
 				return False
 
 		'''find allow rules. create if not found'''
-		if 'allowedNetworks' in appConfig[app]:
-			for allowRule in appConfig[app]['allowedNetworks'].split(','):
+		if 'allowednetworks' in appConfig[app]:
+			for allowRule in appConfig[app]['allowednetworks'].split(','):
 				foundRule = False
 				for line in output.splitlines():
 					part = line.split()
-					if len(part) >= 10 and part[10].startswith("{0}|master|{1}|{2}" . format(mainConfig['name'], app, allowRule)):
+					if len(part) >= 10 and "{0}|master|{1}|{2}" . format(mainConfig['name'], app, allowRule) in part[10]:
 						foundRule = True
+						break
 
 				if foundRule is False:
 					try:

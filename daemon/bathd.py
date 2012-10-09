@@ -23,7 +23,27 @@ import multiprocessing
 
 from libbath import *
 from pwd import getpwnam
-from bottle import route, run, request
+from bottle import route, run, request, server_names, ServerAdapter
+
+mainConfig = getMainConfig()
+appConfig  = getAppConfig()
+
+
+###################
+# SSL Server class
+###################
+class SSLCherryPy(ServerAdapter):
+	def run(self, handler):
+		from cherrypy import wsgiserver
+		server = wsgiserver.CherryPyWSGIServer((self.host, self.port), handler)
+
+		server.ssl_certificate = mainConfig['cert']
+		server.ssl_private_key = mainConfig['cert']
+		
+		try:
+			server.start()
+		finally:
+			server.stop()
 
 
 ################################
@@ -34,7 +54,6 @@ from bottle import route, run, request
 @route('/create/<app>/<user>/<ip>/<user_ip>/<comment>')
 def create(app, user, ip, user_ip, comment):
 	message = create_connection(app, user, ip, user_ip, comment)
-	#message = "Created rule for {0} from {1} with access to {2} on port {3} - {4}" . format(user, user_ip, ip, port, comment)
 	return message
 	
 	
@@ -50,18 +69,10 @@ def history(user=None):
 
 
 ########################################################
-# Returns a list of active connections for a user
-########################################################
-@route('/active/<user>/<output>')
-def active(user, output):
-	return #get_active_connections()
-
-
-########################################################
 # Returns true if user is an admin
 ########################################################
 @route('/admin/<user>')
-def admin(user, output):
+def admin(user):
 	return is_admin(user)
 
 
@@ -85,7 +96,6 @@ def adminactive(user):
 #   rules are in place
 ################################################################
 def janitor():
-	mainConfig = getMainConfig()
 	# set up logging
 	logger = logging.getLogger("bathd")
 	logger.setLevel(logging.INFO)
@@ -103,7 +113,6 @@ def janitor():
 
 	# main janitorial loop
 	while verify_master_rules(logger):
-		appConfig = getAppConfig()
 		for rule in get_all_active_connections():
 			then = datetime.strptime(rule['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
 			if (datetime.now() - then) > timedelta(minutes=int(appConfig[rule['app']].get('ttl'))) or rule['user'] == mainConfig.get('monitorUser') or rule['app'] not in appConfig:
@@ -120,10 +129,16 @@ def janitor():
 	dbcursor.close()
 	dbconnection.close()
 
+
+###########################
+# Start Main Program Stuff 
+###########################
 if __name__ == '__main__':
-	mainConfig = getMainConfig()
 	scruffy = multiprocessing.Process(target=janitor)
 	scruffy.start()
 	
+
+#	server_names['sslcherrypy'] = SSLCherryPy
+	#manager = multiprocessing.Process(target=run, kwargs={'host': mainConfig['host'], 'port': mainConfig['port'], 'reloader': False, 'server': 'sslcherrypy'})
 	manager = multiprocessing.Process(target=run, kwargs={'host': mainConfig['host'], 'port': mainConfig['port'], 'reloader': False, 'server': 'paste'})
 	manager.start()

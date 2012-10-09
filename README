@@ -1,9 +1,7 @@
 BATH
 
-In the initial version of bath, only ssh is supported (and there is no installer yet, so you need to do this manually.
-
-The python files go in /var/lib/bath/app
-The database and pid file get created in /var/lib/bath
+The python files go in /var/lib/bath
+The database and pid file get created in /var/lib/bath/daemon
 
 bath.sh is a shell script that connects to the webpage using curl for instances where a web browser is cumbersome, or just not available.
 
@@ -30,22 +28,23 @@ Alias /bath /var/lib/bath/app
 </Location>
 ----------------------------------
 
-These lines needs to be in the /etc/sudoers file:
+These lines needs to be in the /etc/sudoers file (bath is an unprivileged user):
 ----------------------------------
 # Cmnd alias specification
 Cmnd_Alias CREATERULE = /sbin/iptables --append INPUT --protocol tcp --dport [0-9][0-9]* --match state --state NEW --jump REJECT --match comment --comment *
 Cmnd_Alias ADDRULE = /sbin/iptables --insert INPUT --protocol tcp --dport [0-9][0-9]* --match state --state NEW --jump ACCEPT --source *
 Cmnd_Alias DELRULE = /sbin/iptables --delete INPUT --protocol tcp --dport [0-9][0-9]* --match state --state NEW --jump ACCEPT --source *
 Cmnd_Alias SHOWRULE = /sbin/iptables --numeric --list INPUT
-www-data        bath-dev=NOPASSWD: CREATERULE, ADDRULE, DELRULE, SHOWRULE
+bath        bath-dev=NOPASSWD: CREATERULE, ADDRULE, DELRULE, SHOWRULE
 ----------------------------------
 
 the bathd script is the init file that starts the daemon, and should go into /etc/init.d/
 
 CONFIG
 
-take a look at /var/lib/bath/bath.conf
+take a look at daemon/bath.conf
 pay particular attnetion to the iptable rules, which must match with what's been put in the /etc/sudoers file
+also take a look at client.conf
 
 PIDFILE in the init script must match the pidfile in the config if you wish to use the init script
 
