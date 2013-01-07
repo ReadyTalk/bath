@@ -10,7 +10,7 @@ bath.sh is a shell script that connects to the webpage using _curl_ for instance
 
 * python 2.6.3+
 * bottle (http://bottlepy.org)
-* sudo (but not the version with this [bug](http://comments.gmane.org/gmane.comp.tools.sudo.user/3838)). See [ISSUES](https://github.com/terekcampbell/bath/blob/master/README.md#issues)
+* sudo (but not the version with this [bug](http://comments.gmane.org/gmane.comp.tools.sudo.user/3838)). See __ISSUES__
 * apache2 w/ssl mod_python
 * iptables
 
