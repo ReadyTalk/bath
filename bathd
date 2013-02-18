@@ -1,58 +1,70 @@
-#!/bin/sh
-
+#! /bin/sh -e
 ### BEGIN INIT INFO
-# Provides:          bathd
-# Required-Start:    $remote_fs $time $network
-# Required-Stop:     $remote_fs $time $network
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
-# Short-Description: initializes clean up daemon for multi-factor authentication method
+# Provides:           bathd
+# Required-Start:     $network $remote_fs $ssh
+# Required-Stop:      $network $remote_fs $ssh
+# Default-Start:      2 3 4 5
+# Default-Stop:       0 1 6
+# Short-Description: initializes daemon for multi-factor authentication method
 # Description:       Bath is a system for adding a factor of authentication 
 #                    to any port based service via webservice. bathd is the daemon that
-#                    cleans up any expired iptables rules
+#                    sets up iptables default deny rules and reaps old rules.
 ### END INIT INFO
-
-#set -e
+#
+set -e
 
 . /lib/lsb/init-functions
 
-DAEMON=/var/lib/bath/app/bathd.py
-BASE=bathd
-PIDFILE=/var/lib/bath/bathd.pid
-USER=www-data
+export PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DAEMON="/var/lib/bath/app/bathd.py"
+PIDFILE="/var/lib/bath/bathd.pid"
+RUNUSER="www-data"
+RUNGROUP="www-data"
 
-test -x $DAEMON || exit 0
+# Cd to / before starting any daemons.
+cd /
 
-start_bath() { 
-	start-stop-daemon --pidfile $PIDFILE --make-pidfile --chuid $USER --background --start --oknodo --exec $DAEMON
+start_bath() {
+  log_daemon_msg "Starting bath daemon bathd" || true
+  if start-stop-daemon --quiet --start --make-pidfile --oknodo --background --pidfile $PIDFILE --chuid $RUNUSER:$RUNGROUP --exec $DAEMON -- $BATHD_OPTS; then
+    log_end_msg 0 || true
+  else
+    log_end_msg 1 || true
+  fi
 }
 
 stop_bath() {
-#	killproc -p $PIDFILE && exit 0 || exit $?
-	start-stop-daemon --pidfile $PIDFILE --stop --oknodo
+  log_daemon_msg "Stopping bath daemon bathd" || true
+  if start-stop-daemon --quiet --stop --oknodo --pidfile $PIDFILE --chuid $RUNUSER:$RUNGROUP --retry 5 --exec $DAEMON -- $BATHD_OPTS; then
+    log_end_msg 0 || true
+  else
+    log_end_msg 1 || true
+  fi
+#remove iptables blocking
 }
 
 case "$1" in
-	start)
-		log_daemon_msg "Starting bath" "bathd"
-		start_bath
-	;;
-	stop)
-		log_daemon_msg "Stopping bath" "bathd"
-		stop_bath
-	;;
-	restart)
-		log_daemon_msg "Restarting bath" "bathd"
-		stop_bath
-		start_bath
-	;;
-	status)
-		status_of_proc -p $PIDFILE $DAEMON $BASE && exit 0 || exit $?
-	;;
-	*)
-		echo "Usage: $(basename $0) {start|stop|restart|status}"
-	;;
+  start)
+    start_bath
+    ;;
+  stop)
+    stop_bath
+    ;;
+  restart)
+    log_daemon_msg "Restarting bath daemon bathd" || true
+    stop_bath
+    # Allow the daemons time to exit completely.
+    sleep 2
+    start_bath
+    ;;
+  status)
+    status=0
+    status_of_proc -p $PIDFILE $DAEMON bathd || status=$?
+    exit $status
+    ;;
+  *)
+    echo "Usage: /etc/init.d/bathd {start|stop|restart|status}"
+    exit 1
 esac
 
-echo 
 exit 0
