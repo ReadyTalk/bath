@@ -30,7 +30,7 @@ Save and quit, and log out of root
 
 Navigate to /etc/apache2 and run: sudo a2dissite 000-default && sudo a2ensite port443
 
-Edit /etc/hosts so that the IP next to your machine (internerd#.e.ecovate.com) is your IP rather than 127.0.0.1
+Edit /etc/hosts so that the IP next to your hostname is your IP rather than 127.0.0.1
 
 Edit /var/lib/bath/app/libbath.py to return some string (single quotes) after line 22 (the string can be anything)
 
