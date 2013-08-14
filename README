@@ -10,8 +10,6 @@ deb http://backports.debian.org/debian-backports squeeze-backports main
 Run: sudo apt-get update && sudo apt-get -t squeeze-backports install sudo
 This installs a newer version of sudo, because there's a bug with the one we have. If it asks about replacing the sudoers file, I would keep the one you have (that's what I did, at least)
 
-Replace /etc/apache2/sites-available/port443 with the one attached to this email
-
 Run: su -
 Type in your root password
 Run: visudo
