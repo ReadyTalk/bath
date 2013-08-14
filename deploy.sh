@@ -8,11 +8,19 @@ then
     exit 1
 fi
 
+# Check sudo version
+sudo_version=`sudo -V | grep "Sudo version" | awk '{print $3}'`
+if [[ sudo_version < "1.7.8p2" ]]
+then
+	echo "You must use a version of sudo >= 1.7.8p2"
+	exit 1
+fi
+
+# Copy files to correct locations
 SITES_AVAIL="etc/apache2/sites-available"
 INIT_D="etc/init.d"
 BATH_DIR="var/lib/bath"
 
-# Copy files to correct locations
 cp -r ${SITES_AVAIL}/port443 /${SITES_AVAIL}/
 cp -r ${INIT_D}/bath /${INIT_D}/
 
