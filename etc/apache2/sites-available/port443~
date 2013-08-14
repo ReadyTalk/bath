@@ -1,0 +1,22 @@
+Listen 80
+NameVirtualHost *:80
+
+ServerAdmin webmaster@localhost
+ErrorLog ${APACHE_LOG_DIR}/error.log
+TransferLog ${APACHE_LOG_DIR}/access.log
+#LogLevel debug
+
+<VirtualHost *:80>
+
+  DocumentRoot "/var/lib/bath/app"
+  CustomLog ${APACHE_LOG_DIR}/bath.access.log combined
+
+  <Location />
+    DirectoryIndex index.py
+    AddHandler mod_python .py
+    PythonHandler mod_python.publisher
+
+  </Location>
+
+</VirtualHost>
+
