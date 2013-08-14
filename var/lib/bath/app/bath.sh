@@ -1,4 +1,5 @@
 #!/bin/bash
+# Argument = -u user -i ipaddress -c comment -s service
 
 set -e
 
@@ -27,13 +28,13 @@ OPTIONS:
   -i  ip address to allow in authentication
   -l  execute connection to service if authenticated
   -u  user for authentication (defaults to whoami)
-	-k  curl insecure mode
+  -s  service to enable (not currently used)
 EOF
 	
 	exit 99
 }
 
-while getopts "hld:c:i:u:k" OPTION
+while getopts "hld:c:i:u:s" OPTION
 do
 	case ${OPTION} in
 		h)
@@ -54,8 +55,9 @@ do
 		u)
 			user=$OPTARG
 			;;
-		k)
-			secure="--insecure"
+		s)
+			service=$OPTARG
+			;;
 	esac
 done
 
@@ -70,7 +72,7 @@ if [[ -z "${host}" ]]; then
 fi
 
 # URL for the service
-url="https://${host}/"
+url="https://${host}/water.py/createSshTunnel"
 
 if [[ -z "${comment}" ]]; then
 	echo -e "comment: \c "
@@ -84,8 +86,8 @@ fi
 
 content="--data-urlencode output=text"
 
-if [[ ! -z "${comment}" ]]; then
-	content="${content} --data-urlencode \"comment=${comment}\""
+if [[ ! -z "${comment}" || "${comment}" == "" ]]; then
+	content="${content} --data-urlencode comment=${comment// /+}"
 fi
 
 if [[ ! -z "${ip}" ]]; then
@@ -97,9 +99,18 @@ echo "for:      ${ip}"
 echo "using:    ${user}"
 echo "comments: ${comment}"
 
-eval $(command -pv curl) ${secure} --silent --show-error --user ${user} ${content} "${url}"
+return=$($(command -pv curl) --silent --show-error --user ${user} ${content} "${url}")
 
-if [[ $? != 0 ]]; then
+if [[ ${return} == *"Connection Added Successfully"* ]]; then
+	echo "${return}"
+	if [ ${login} ]; then
+		if [[ ${service} == 'ssh' ]]; then
+			exec ssh ${user}@${host}
+		fi
+		exit 0
+	fi
+	exit 0
+else
 	echo "########"
 	echo "# FAIL #"
 	echo "########"
