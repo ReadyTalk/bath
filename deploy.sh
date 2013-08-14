@@ -2,14 +2,21 @@
 
 # TODO:
 # - Check for required packages
-# - Check for www-data user
 
-# Must be root
+# Check if root
 who=`whoami`
 if [[ $who != 'root' ]]
 then
 	echo "You must run this script as root."
     exit 1
+fi
+
+# Check if www-data user exists
+id -u www-data
+if [[ $? -ne 0 ]]
+then
+	echo "The www-data user does not exist."
+	exit 1;
 fi
 
 # Check sudo version
@@ -19,20 +26,6 @@ then
 	echo "You must use a version of sudo >= 1.7.8p2"
 	exit 1
 fi
-
-# Copy files to correct locations
-SITES_AVAILABLE="etc/apache2/sites-available"
-INIT_D="etc/init.d"
-BATH_DIR="var/lib/bath"
-
-cp -r ${SITES_AVAILABLE}/port443 /${SITES_AVAILABLE}/
-cp -r ${INIT_D}/bath /${INIT_D}/
-
-mkdir -p /${BATH_DIR}
-cp -r ${BATH_DIR}/bath.conf /${BATH_DIR}/
-cp -r ${BATH_DIR}/app /${BATH_DIR}/
-
-chown -R www-data:www-data /${BATH_DIR}
 
 # Check sudoers file
 SECURE_PATH_REGEX='Defaults(\s+)secure_path(\s*)=(\s*)"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'
@@ -56,6 +49,20 @@ then
 	echo "The sudoers file needs to be modified. See the README for what must be added."
 	exit 1;
 fi
+
+# Copy files to correct locations
+SITES_AVAILABLE="etc/apache2/sites-available"
+INIT_D="etc/init.d"
+BATH_DIR="var/lib/bath"
+
+cp -r ${SITES_AVAILABLE}/port443 /${SITES_AVAILABLE}/
+cp -r ${INIT_D}/bath /${INIT_D}/
+
+mkdir -p /${BATH_DIR}
+cp -r ${BATH_DIR}/bath.conf /${BATH_DIR}/
+cp -r ${BATH_DIR}/app /${BATH_DIR}/
+
+chown -R www-data:www-data /${BATH_DIR}
 
 # Reload/restart apache
 /${INIT_D}/apache2 reload
