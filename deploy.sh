@@ -2,6 +2,7 @@
 
 # TODO:
 # - Check for required packages
+# - Include Apache setup
 
 # Check if root
 who=`whoami`
