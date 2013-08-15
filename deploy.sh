@@ -12,19 +12,19 @@ then
     exit 1
 fi
 
-# Check if www-data user exists
-id -u www-data &> /dev/null
-if [[ $? -ne 0 ]]
-then
-	echo "The www-data user does not exist."
-	exit 1
-fi
-
 # Check sudo version
 sudo_version=`sudo -V | grep "Sudo version" | awk '{print $3}'`
 if [[ sudo_version < "1.7.8p2" ]]
 then
 	echo "You must use a version of sudo >= 1.7.8p2"
+	exit 1
+fi
+
+# Check if www-data user exists
+id -u www-data &> /dev/null
+if [[ $? -ne 0 ]]
+then
+	echo "The www-data user does not exist."
 	exit 1
 fi
 
