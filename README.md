@@ -8,15 +8,15 @@ From the [original README](README-orig):
 Run `sudo ./deploy.sh`  
 This will do *most* of the Bath setup after some initial error checking. You may have to update your version of sudo, install apache, edit your sudoers file, or edit your hosts file (see Manual Setup below). If those checks pass, the script will copy all of the files to their correct locations in the file system and do some basic Apache setup.
 
-###Manual Setup
+### Manual Setup
 
 * Copy the files to the correct locations (as dictated by the directory structure)
 
-* Assuming you've installed Apache, navigate to /etc/apache2 and run: `sudo a2enmod ssl`
+* Assuming you've installed Apache, navigate to */etc/apache2* and run: `sudo a2enmod ssl`
 
-* Delete/comment out everything in /etc/apache2/ports.conf
+* Delete/comment out everything in */etc/apache2/ports.conf*
 
-* Add the following line to your /etc/apt/sources.list:  
+* Add the following line to your */etc/apt/sources.list*:  
 
         deb http://backports.debian.org/debian-backports squeeze-backports main
 
@@ -44,11 +44,11 @@ Run: `visudo`
 
 * Save and quit, and log out of root
 
-* Navigate to /etc/apache2 and run: `sudo a2dissite 000-default && sudo a2ensite port443`
+* Navigate to */etc/apache2* and run: `sudo a2dissite 000-default && sudo a2ensite port443`
 
-* Edit /etc/hosts so that the IP next to your hostname is your IP rather than 127.0.0.1
+* Edit */etc/hosts* so that the IP next to your hostname is your IP rather than 127.0.0.1
 
-* Edit /var/lib/bath/app/libbath.py to return some string (single quotes) after line 22 (the string can be anything)
+* Edit */var/lib/bath/app/libbath.py* to return some string (single quotes) after line 22 (the string can be anything)
 
 * Run: `sudo chown -R www-data:www-data /var/lib/bath`
 
