@@ -3,13 +3,12 @@ Bath
 From the [original README](README-orig):
 >bath.sh is a shell script that connects to the webpage using curl for instances where a web browser is cumbersome, or just not available.
 
-(Almost) Automatic Setup
-----------
+### (Almost) Automatic Setup
+
 Run `sudo ./deploy.sh`  
 This will do *most* of the Bath setup after some initial error checking. You may have to update your version of sudo, install apache, edit your sudoers file, or edit your hosts file (see Manual Setup below). If those checks pass, the script will copy all of the files to their correct locations in the file system and do some basic Apache setup.
 
-Manual Setup
-----------
+###Manual Setup
 
 * Copy the files to the correct locations (as dictated by the directory structure)
 
