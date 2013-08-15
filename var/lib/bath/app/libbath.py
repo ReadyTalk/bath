@@ -20,7 +20,7 @@ def get_client_ip(req):
 #####################################
 def get_user_name(req):
 	req.add_common_vars()
-        return 'username'
+	return 'username'
 	if  get_client_ip(req) in ('127.0.0.1','192.168.1.15','192.168.6.23','192.168.24.42'):
 		return monitorUser
 	else:
