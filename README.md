@@ -3,6 +3,17 @@ Bath
 From the [original README](README-orig):
 >bath.sh is a shell script that connects to the webpage using curl for instances where a web browser is cumbersome, or just not available.
 
+### Dependencies
+
+```
+apache2
+apache2-threaded-dev
+libapache2-mod-python
+python-dev
+python-bottle
+python-ipaddr
+```
+
 ### (Almost) Automatic Setup
 
 Run `sudo ./deploy.sh`  
