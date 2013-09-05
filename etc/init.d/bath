@@ -1,4 +1,4 @@
-#! /bin/sh -e
+#! /bin/sh
 ### BEGIN INIT INFO
 # Provides:           bathd
 # Required-Start:     $network $remote_fs $ssh
@@ -6,7 +6,7 @@
 # Default-Start:      2 3 4 5
 # Default-Stop:       0 1 6
 # Short-Description: initializes daemon for multi-factor authentication method
-# Description:       Bath is a system for adding a factor of authentication 
+# Description:       Bath is a system for adding a factor of authentication
 #                    to any port based service via webservice. bathd is the daemon that
 #                    sets up iptables default deny rules and reaps old rules.
 ### END INIT INFO
@@ -25,22 +25,22 @@ RUNGROUP="www-data"
 cd /
 
 start_bath() {
-  log_daemon_msg "Starting bath daemon bathd" || true
+  log_daemon_msg "Starting bath daemon bathd"
   if start-stop-daemon --quiet --start --make-pidfile --oknodo --background --pidfile $PIDFILE --chuid $RUNUSER:$RUNGROUP --exec $DAEMON -- $BATHD_OPTS; then
-    log_end_msg 0 || true
+    log_end_msg 0
   else
-    log_end_msg 1 || true
+    log_end_msg 1
   fi
 }
 
 stop_bath() {
-  log_daemon_msg "Stopping bath daemon bathd" || true
+  log_daemon_msg "Stopping bath daemon bathd"
   if start-stop-daemon --quiet --stop --oknodo --pidfile $PIDFILE --chuid $RUNUSER:$RUNGROUP --retry 5 --exec $DAEMON -- $BATHD_OPTS; then
-    log_end_msg 0 || true
+    log_end_msg 0
   else
-    log_end_msg 1 || true
+    log_end_msg 1
   fi
-#remove iptables blocking
+  #TODO: remove iptables blocking (flush the rules)
 }
 
 case "$1" in
@@ -51,19 +51,17 @@ case "$1" in
     stop_bath
     ;;
   restart)
-    log_daemon_msg "Restarting bath daemon bathd" || true
+    log_daemon_msg "Restarting bath daemon bathd"
     stop_bath
     # Allow the daemons time to exit completely.
     sleep 2
     start_bath
     ;;
   status)
-    status=0
-    status_of_proc -p $PIDFILE $DAEMON bathd || status=$?
-    exit $status
+    status_of_proc -p $PIDFILE $DAEMON bathd
     ;;
   *)
-    echo "Usage: /etc/init.d/bathd {start|stop|restart|status}"
+    echo "Usage: $(basename $0) {start|stop|restart|status}"
     exit 1
 esac
 

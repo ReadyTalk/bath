@@ -1,23 +1,24 @@
-ErrorLog ${APACHE_LOG_DIR}/error.log
-TransferLog ${APACHE_LOG_DIR}/access.log
-#LogLevel debug
-
-Listen 443
-
 <VirtualHost *:443>
+  ServerName server.domain.com
+
   SSLEngine On
   SSLCertificateFile /etc/ssl/localcerts/apache.pem
   SSLCertificateKeyFile /etc/ssl/localcerts/apache.key
 
   DocumentRoot "/var/lib/bath/app"
+  ErrorLog ${APACHE_LOG_DIR}/bath.error.log
   CustomLog ${APACHE_LOG_DIR}/bath.access.log combined
 
   <Location />
+    AuthType Basic
+    AuthName "Authorized Access Only. All Sessions are logged."
+    AuthBasicProvider file
+    AuthUserFile /path/to/htpasswd
+    Require valid-user
+
     DirectoryIndex index.py
     AddHandler mod_python .py
     PythonHandler mod_python.publisher
 
   </Location>
-
 </VirtualHost>
-
